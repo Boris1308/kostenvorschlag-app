@@ -1,26 +1,39 @@
 const express = require("express");
-const bodyParser = require("body-parser");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+const Tesseract = require("tesseract.js");
 
 const app = express();
 const upload = multer({ dest: "uploads/" });
-const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static("public"));
 
-// Startseite
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
+// Neuer Upload-Endpoint mit Texterkennung
+app.post("/upload", upload.single("file"), async (req, res) => {
+  const filePath = req.file.path;
+
+  try {
+    // OCR mit Tesseract.js starten
+    const result = await Tesseract.recognize(filePath, "deu");
+    const text = result.data.text;
+
+    console.log("OCR-Ergebnis:", text);
+
+    // Ausgabe auf der Website
+    res.send(`
+      <h2>Texterkennung erfolgreich</h2>
+      <pre>${text}</pre>
+      <a href="/">Zurück</a>
+    `);
+  } catch (err) {
+    console.error("Fehler bei der Texterkennung:", err);
+    res.status(500).send("Fehler bei der Texterkennung!");
+  } finally {
+    // Datei wieder löschen
+    fs.unlinkSync(filePath);
+  }
 });
 
-// Upload-Route
-app.post("/upload", upload.single("file"), (req, res) => {
-  console.log("Upload erfolgreich:", req.file);
-  res.send("Datei erfolgreich hochgeladen!");
-});
+app.listen(3000, () => console.log("Server läuft auf Port 3000"));
 
-app.listen(PORT, () => console.log(`Server läuft auf Port ${PORT}`));
