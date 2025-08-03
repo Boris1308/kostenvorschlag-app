@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kostenvoranschlag App</title>
+</head>
+<body>
+  <h1>Willkommen zur Kostenvoranschlag-App</h1>
+  <p>Hier kannst du deinen Fahrzeugschein hochladen.</p>
+  <form action="/upload" method="post" enctype="multipart/form-data">
+    <input type="file" name="fahrzeugschein" accept="image/*">
+    <button type="submit">Hochladen</button>
+  </form>
+</body>
+</html>
