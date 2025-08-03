@@ -7,50 +7,57 @@ const Tesseract = require("tesseract.js");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ----- Statischer Ordner für index.html -----
-app.use(express.static(path.join(__dirname, "public")));
-
-// ----- Upload-Konfiguration -----
+// Speicherort für Uploads festlegen
 const upload = multer({ dest: "uploads/" });
 
-// ----- Startseite -----
+// Damit wir Formulare (manuelle Eingaben) verarbeiten können
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+
+// Statische Dateien (Frontend)
+app.use(express.static("public"));
+
+// Startseite
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// ----- Upload-Route mit Texterkennung -----
-app.post("/upload", upload.single("file"), (req, res) => {
-  if (!req.file) {
-    return res.status(400).send("Keine Datei hochgeladen!");
-  }
+// Upload Route: Fahrzeugschein
+app.post("/upload", upload.single("file"), async (req, res) => {
+  try {
+    const filePath = req.file.path;
 
-  const filePath = path.join(__dirname, req.file.path);
+    // OCR mit Tesseract
+    const { data: { text } } = await Tesseract.recognize(filePath, "deu");
 
-  // Texterkennung starten
-  Tesseract.recognize(filePath, "deu", {
-    logger: (m) => console.log(m), // optional: Fortschritt in der Konsole
-  })
-    .then(({ data: { text } }) => {
-      console.log("OCR Ergebnis:", text);
+    // Temporäre Datei löschen
+    fs.unlinkSync(filePath);
 
-      // Hochgeladene Datei nach Verarbeitung löschen
-      fs.unlinkSync(filePath);
-
-      // OCR Ergebnis zurücksenden
-      res.send(`
-        <h1>Texterkennung abgeschlossen</h1>
-        <pre>${text}</pre>
-        <a href="/">Zurück</a>
-      `);
-    })
-    .catch((err) => {
-      console.error("Fehler bei Texterkennung:", err);
-      res.status(500).send("Fehler bei Texterkennung");
+    // Rückgabe: erkannter Text
+    res.json({
+      success: true,
+      message: "Fahrzeugschein erfolgreich erkannt.",
+      ocrText: text,
     });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Fehler bei Texterkennung." });
+  }
 });
 
-// ----- Server starten -----
+// Manuelle Eingabe
+app.post("/manual", (req, res) => {
+  const fahrzeugdaten = req.body;
+  console.log("Manuell eingegebene Fahrzeugdaten:", fahrzeugdaten);
+
+  res.json({
+    success: true,
+    message: "Manuelle Fahrzeugdaten erfolgreich übernommen.",
+    fahrzeugdaten,
+  });
+});
+
+// Server starten
 app.listen(PORT, () => {
   console.log(`Server läuft auf Port ${PORT}`);
 });
-
